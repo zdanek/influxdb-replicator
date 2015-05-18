@@ -81,9 +81,12 @@
 //            log(data['points'][0])
 
             var dataToWrite = {}
+
+            dataToWrite['points'] = []
             dataToWrite['name'] = data['name'];
             dataToWrite['columns'] = []
             dataToWrite['points'] = []
+
             if (!checkValidRowFormat(points[0])) {
                 error('Row format invalid')
                 return
@@ -92,25 +95,23 @@
             dataToWrite['columns'] = ['time', 'sequence_number', 'value']
 
             $.each(points, function(key, val) {
-                dataToWrite['points'].push({
-                    'time' : val.time.getTime(),
-                    'sequence_number' : val.sequence_number,
-                    'value' : val.value
-                })
+                dataToWrite['points'].push([val.time.getTime(), val.sequence_number, val.value])
             })
+//                dataToWrite['points'].push([123, 1, "1"])
 
 //            log(dataToWrite)
             spinCopyButton()
             log('Writing data do DST')
             var load = []
             load.push(dataToWrite)
-            influxDst.writeSeries(dataToWrite, dataWriteCallback)
+            log(dataToWrite)
+            influxDst.writeSeries([dataToWrite], dataWriteCallback)
+            $spinner.detach();
+            log('Data written')
         }
 
-        var dataWriteCallback = function(ret) {
-            log('Data written')
-            log(ret)
-
+        var dataWriteCallback = function() {
+            log('Callback: Data written')
             $spinner.detach();
         }
 
@@ -196,7 +197,7 @@
 <body>
 
 <div>
-    Query <input id="query" name="query" value='select * from "generic1.endpoint.{org.p4.esb.webserver-0.0.18}mailsender.process.consumer.started.count" where time > now() - 25d' />
+    Query <input id="query" name="query" value='' />
     <button id="execQuery">query src</button>
     <button id="execCopy">copy src -> dst</button>
 
