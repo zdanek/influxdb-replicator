@@ -15,6 +15,12 @@
 //            $('#logWindow').text($('#logWindow').text() + "\n" + msg)
         }
 
+        var error = function(msg) {
+            console.log('ERROR---')
+            console.log(msg)
+            console.log('---ERROR')
+        }
+
 
         var connectDBs = function() {
             influxSrc = new InfluxDB({
@@ -44,22 +50,108 @@
             $('#execQuery').append($spinner)
         }
         var spinCopyButton = function() {
-            $('#copyQuery').append($spinner)
+            $('#execCopy').append($spinner)
         }
 
         var execQueryCallback = function(data) {
             $spinner.detach();
 
-            //log(data)
-            log('Got ' + data[0]['points'].length + ' points');
-            log(data[0]['points'][0])
+            if (data.length == 0) {
+                log('No data')
+                return;
+            }
+            data = data[0];
+            log(data)
+            log('Got ' + data['points'].length + ' points');
+            log(data['points'][0])
 
         }
 
         var execCopyCallback = function(data) {
             $spinner.detach();
+
+            if (data.length == 0) {
+                log('No data')
+                return;
+            }
+            data = data[0];
+            var points = data['points']
+//            log(data)
+            log('Got ' + points.length + ' points');
+//            log(data['points'][0])
+
+            var dataToWrite = {}
+            dataToWrite['name'] = data['name'];
+            dataToWrite['columns'] = []
+            dataToWrite['points'] = []
+            if (!checkValidRowFormat(points[0])) {
+                error('Row format invalid')
+                return
+            }
+
+            dataToWrite['columns'] = ['time', 'sequence_number', 'value']
+
+            $.each(points, function(key, val) {
+                dataToWrite['points'].push({
+                    'time' : val.time.getTime(),
+                    'sequence_number' : val.sequence_number,
+                    'value' : val.value
+                })
+            })
+
+//            log(dataToWrite)
+            spinCopyButton()
+            log('Writing data do DST')
+            var load = []
+            load.push(dataToWrite)
+            influxDst.writeSeries(dataToWrite, dataWriteCallback)
         }
 
+        var dataWriteCallback = function(ret) {
+            log('Data written')
+            log(ret)
+
+            $spinner.detach();
+        }
+
+        var checkValidRowFormat = function(row) {
+
+            if (Object.keys(row).length != 3) {
+                error('unexpected column count: ' + Object.keys(row).length)
+                return false
+            }
+            if (row['time'] == undefined) {
+                error('time column undefined')
+                return false
+            }
+            if (row['time'].getMilliseconds == undefined) {
+                error('time.getMilliseconds() undefined')
+                return false
+            }
+            if (row['sequence_number'] == undefined) {
+                error('sequence_number column undefined')
+                return false
+            }
+            if (row['value'] == undefined) {
+                error('value column undefined')
+                return false
+            }
+
+            return true
+        }
+/*
+ [
+ {
+ "name": "log_lines",
+ "columns": ["time", "sequence_number", "line"],
+ "points": [
+ [1400425947368, 1, "this line is first"],
+ [1400425947368, 2, "and this is second"]
+ ]
+ }
+ ]
+
+ */
         var getQuery = function() {
             return $('#query').val()
         }
@@ -90,7 +182,7 @@
 
         var init = function() {
             $('#execQuery').click(execQuery)
-            $('#copyQuery').click(copyQuery)
+            $('#execCopy').click(copyQuery)
 
         }
 
@@ -104,7 +196,7 @@
 <body>
 
 <div>
-    Query <input id="query" name="query" />
+    Query <input id="query" name="query" value='select * from "generic1.endpoint.{org.p4.esb.webserver-0.0.18}mailsender.process.consumer.started.count" where time > now() - 25d' />
     <button id="execQuery">query src</button>
     <button id="execCopy">copy src -> dst</button>
 
