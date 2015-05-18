@@ -1,0 +1,118 @@
+<html>
+<head>
+<link href="all.css" media="screen" rel="stylesheet" type="text/css" />
+<script src="influxdb-0.1.6.js" type="text/javascript"></script>
+<script src="jquery-2.1.4.min.js" type="text/javascript"></script>
+
+    <script>
+
+        var influxSrc;
+        var influxDst;
+        var $spinner = $("<img>").attr('src', 'spinner-small.gif')
+
+        var log = function(msg) {
+            console.log(msg)
+//            $('#logWindow').text($('#logWindow').text() + "\n" + msg)
+        }
+
+
+        var connectDBs = function() {
+            influxSrc = new InfluxDB({
+                "host" :"logserver",
+                "port" :"8086",
+                "username" :"root",
+                "password" :"root",
+                "database" :"fabric"
+            });
+            log('Connected to src')
+            log(influxSrc.host + "/" + influxSrc.database)
+            log(influxSrc)
+
+            influxDst = new InfluxDB({
+                "host" :"localhost",
+                "port" :"8086",
+                "username" :"root",
+                "password" :"root",
+                "database" :"fabric_copy"
+            });
+            log('Connected to dst')
+            log(influxDst.host + "/" + influxDst.database)
+            log(influxDst)
+        }
+
+        var spinQueryButton = function() {
+            $('#execQuery').append($spinner)
+        }
+        var spinCopyButton = function() {
+            $('#copyQuery').append($spinner)
+        }
+
+        var execQueryCallback = function(data) {
+            $spinner.detach();
+
+            //log(data)
+            log('Got ' + data[0]['points'].length + ' points');
+            log(data[0]['points'][0])
+
+        }
+
+        var execCopyCallback = function(data) {
+            $spinner.detach();
+        }
+
+        var getQuery = function() {
+            return $('#query').val()
+        }
+        var execQuery = function() {
+            var query = getQuery();
+            log('executing ' + query)
+            if (query.length == 0) {
+                log('Fill query')
+                return
+            }
+
+            spinQueryButton()
+            influxSrc.query(query, execQueryCallback)
+        }
+
+        var copyQuery = function() {
+            var query = getQuery();
+            log('copying ' + query)
+            if (query.length == 0) {
+                log('Fill query')
+                return
+            }
+
+            spinCopyButton()
+            influxSrc.query(query, execCopyCallback)
+        }
+
+
+        var init = function() {
+            $('#execQuery').click(execQuery)
+            $('#copyQuery').click(copyQuery)
+
+        }
+
+        $(document).ready(function() {
+            log('Starting up');
+            init();
+            connectDBs();
+        })
+    </script>
+</head>
+<body>
+
+<div>
+    Query <input id="query" name="query" />
+    <button id="execQuery">query src</button>
+    <button id="execCopy">copy src -> dst</button>
+
+</div>
+
+<div >
+    <pre id="logWinow">XX</pre>
+</div>
+</body>
+
+</html>
